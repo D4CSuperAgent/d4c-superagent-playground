@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>潮汐记事 · UI 基本盘 v1</title>
+<style>
+:root{
+  --ink-950:#070C10; --ink-900:#0C1319; --ink-850:#101A21; --ink-800:#16222B; --ink-700:#22323D;
+  --fog-50:#F5F3EA; --fog-100:#E8E5D8; --fog-300:#A9B3AF; --fog-500:#6E7A78;
+  --copper-300:#F0C46A; --copper-400:#E8B04B; --copper-500:#C08A33; --copper-700:#7A5A22;
+  --copper-a72:rgba(232,176,75,.72); --copper-a42:rgba(232,176,75,.42); --copper-a22:rgba(232,176,75,.22);
+  --sea-300:#9FD3E6; --sea-700:#2C5A6B;
+  --paper-100:#F7F0E2; --paper-200:#EFE5D2; --paper-ink:#1A2939; --paper-muted:#5E5342;
+  --paper-rule:#CDBF9F; --paper-rule-strong:#B8A57E;
+  --panel-bg:rgba(12,19,25,.92);
+  --shadow-panel:0 6px 18px rgba(0,0,0,.45);
+  --shadow-paper:0 12px 28px rgba(0,0,0,.45);
+  --shadow-text:0 1px 2px rgba(0,0,0,.60);
+  --shadow-text-strong:0 1px 3px rgba(0,0,0,.80);
+  --ease:cubic-bezier(.22,1,.36,1);
+  --narr:"Noto Serif SC","Source Han Serif SC","Songti SC",serif;
+  --ui:"Noto Sans SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#0a0d10;color:var(--fog-100);font-family:var(--ui);overflow:hidden}
+#app{display:flex;height:100%}
+
+/* ---------- 控制台（舞台外，不属于设计） ---------- */
+#chrome{width:260px;flex:0 0 260px;height:100%;overflow-y:auto;padding:18px 16px 24px;
+  background:#0e1318;border-right:1px solid #1b2429}
+#chrome h1{font-size:14px;font-weight:600;letter-spacing:.5px;color:var(--fog-50)}
+#chrome .sub{font-size:11px;color:var(--fog-500);margin:4px 0 16px;line-height:16px}
+.grp-t{font-size:11px;letter-spacing:1px;color:var(--fog-500);margin:16px 0 6px}
+.seg{display:flex;flex-wrap:wrap;gap:4px}
+.seg button{flex:0 0 auto;padding:5px 9px;font-size:12px;font-family:var(--ui);cursor:pointer;
+  color:var(--fog-300);background:#151d23;border:1px solid #222e35;border-radius:3px}
+.seg button:hover{color:var(--fog-50);border-color:#33424a}
+.seg button.on{color:#0b0f13;background:var(--copper-400);border-color:var(--copper-400);font-weight:600}
+.chk{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fog-300);margin-top:8px;cursor:pointer}
+.chk input{accent-color:var(--copper-400)}
+#legend{margin-top:22px;border-top:1px solid #1b2429;padding-top:14px}
+.sw{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--fog-500);margin-bottom:5px}
+.sw i{width:14px;height:14px;border-radius:2px;display:block;border:1px solid rgba(255,255,255,.12)}
+.ts{font-size:11px;color:var(--fog-500);margin-top:8px;line-height:19px}
+.ts b{color:var(--fog-300);font-weight:500}
+#viewport{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#080b0e}
+#holder{position:relative;transform-origin:top left}
+
+/* ---------- 舞台 ---------- */
+#stage{position:absolute;top:0;left:0;width:1280px;height:720px;overflow:hidden;
+  transform-origin:top left;background:#0b1013;font-family:var(--ui)}
+
+/* 世界（示意，不是美术稿） */
+.world{position:absolute;inset:0;z-index:0;overflow:hidden}
+.sky{position:absolute;left:0;right:0;top:0;background:linear-gradient(180deg,var(--sky1),var(--sky2))}
+.sea{position:absolute;left:0;right:0;background:linear-gradient(180deg,var(--sea1),var(--sea2))}
+.sea-lines{position:absolute;inset:0;opacity:.5;
+  background:repeating-linear-gradient(180deg,rgba(255,255,255,.06) 0 1px,transparent 1px 7px);
+  -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.1),#000 40%,#000 100%);
+  mask-image:linear-gradient(180deg,rgba(0,0,0,.1),#000 40%,#000 100%)}
+.sky::after{content:"";position:absolute;left:0;right:0;bottom:0;height:44%;
+  background:linear-gradient(180deg,transparent,rgba(255,255,255,.10))}
+.horizon{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.22)}
+.sun{position:absolute;border-radius:50%;background:radial-gradient(circle,var(--sun1),transparent 68%);opacity:.9}
+.sand{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,var(--sand1),var(--sand2))}
+.rock{position:absolute;background:var(--rock1);opacity:.55}
+.pier{position:absolute}
+.pier i{position:absolute;display:block;background:rgba(52,40,30,.9)}
+.boat{position:absolute;left:520px;top:452px;width:240px;height:190px}
+.boat .hull{position:absolute;left:0;top:78px;width:240px;height:74px;
+  background:linear-gradient(180deg,#5a4433,#33251b);
+  clip-path:polygon(8% 0,92% 0,74% 100%,26% 100%)}
+.boat .rib{position:absolute;left:52px;top:96px;width:136px;height:5px;background:rgba(20,14,10,.55);border-radius:2px}
+.boat .mast{position:absolute;left:113px;top:0;width:5px;height:120px;background:#6b5340;border-radius:2px}
+.boat .lamp{position:absolute;left:104px;top:-10px;width:24px;height:14px;border-radius:2px;background:var(--lamp1);
+  box-shadow:0 0 18px 6px var(--lampGlow)}
+
+#stage[data-biome="shore"] .sky{height:38%}
+#stage[data-biome="shore"] .sea{top:38%;height:26%}
+#stage[data-biome="shore"] .horizon{top:38%}
+#stage[data-biome="shore"] .sand{height:36%}
+#stage[data-biome="shore"] .boat{display:none}
+#stage[data-biome="sea"] .sky{height:20%}
+#stage[data-biome="sea"] .sea{top:20%;height:80%}
+#stage[data-biome="sea"] .horizon{top:20%}
+#stage[data-biome="sea"] .sand,#stage[data-biome="sea"] .pier,#stage[data-biome="sea"] .rock{display:none}
+
+/* 时段配色 */
+#stage[data-phase="dawn"]{--sky1:#C3C4CA;--sky2:#EAD9C6;--sea1:#9FB0B6;--sea2:#7F939B;
+  --sand1:#C0A488;--sand2:#9A8168;--rock1:#8d7a68;--sun1:rgba(255,238,214,.5);--lamp1:#F0C46A;--lampGlow:rgba(240,196,106,.35)}
+#stage[data-phase="noon"]{--sky1:#BEDCE0;--sky2:#DCEBE7;--sea1:#8FD0D3;--sea2:#5FA6AC;
+  --sand1:#D3B183;--sand2:#AE8F66;--rock1:#94806a;--sun1:rgba(255,255,255,.35);--lamp1:#E8E5D8;--lampGlow:rgba(255,255,255,.15)}
+#stage[data-phase="dusk"]{--sky1:#E0A87C;--sky2:#F3CBA4;--sea1:#A6AFAC;--sea2:#7E8B8A;
+  --sand1:#C6A077;--sand2:#9C7B59;--rock1:#8a7460;--sun1:rgba(255,206,150,.75);--lamp1:#F0C46A;--lampGlow:rgba(240,196,106,.5)}
+#stage[data-phase="night"]{--sky1:#141F2E;--sky2:#1F2E42;--sea1:#1C3143;--sea2:#12222F;
+  --sand1:#3C3A46;--sand2:#2A2934;--rock1:#2f2f3a;--sun1:rgba(200,220,255,.28);--lamp1:#F0C46A;--lampGlow:rgba(240,196,106,.55)}
+
+/* ---------- HUD ---------- */
+.hud{position:absolute;inset:0;z-index:10;pointer-events:none}
+.panel{background:var(--panel-bg);border:1px solid var(--copper-a42);border-left:2px solid var(--copper-a72);
+  border-radius:3px;box-shadow:var(--shadow-panel)}
+#stage[data-phase="night"] .panel{background:rgba(12,19,25,.96)}
+.txt-shadow{text-shadow:var(--shadow-text)}
+#stage[data-phase="night"] .txt-shadow{text-shadow:var(--shadow-text-strong)}
+
+.keybar{position:absolute;left:24px;top:24px;height:36px;display:flex;align-items:center;
+  gap:16px;padding:0 12px;font-size:14px;line-height:20px;letter-spacing:.2px;color:var(--fog-100)}
+.keybar .g{display:flex;align-items:center;gap:6px}
+.keybar .g .ks{display:flex;gap:4px}
+.key{height:22px;min-width:22px;padding:0 6px;border-radius:3px;background:var(--ink-850);
+  border:1px solid var(--copper-a42);box-shadow:inset 0 -1px 0 rgba(0,0,0,.45);
+  color:var(--fog-100);font-size:12px;line-height:20px;letter-spacing:.5px;
+  display:inline-flex;align-items:center;justify-content:center;font-family:var(--ui)}
+
+.statline{position:absolute;left:24px;top:72px;height:30px;display:flex;align-items:baseline;
+  gap:12px;font-size:22px;line-height:30px;color:var(--fog-50);font-variant-numeric:tabular-nums}
+.statline .sep{color:var(--fog-500);font-size:18px}
+.statline .u{font-size:14px;line-height:20px;color:var(--fog-300);margin-left:2px}
+#stage[data-phase="night"] .statline .u{color:var(--fog-100)}
+
+.prompt{position:absolute;left:24px;top:110px;height:24px;display:flex;align-items:center;gap:8px;
+  font-size:16px;line-height:22px;color:var(--sea-300);opacity:0;transition:opacity 180ms var(--ease)}
+.prompt.on{opacity:1}
+
+/* 瞬时大字 */
+.flash{position:absolute;left:50%;top:400px;transform:translate(-50%,8px);width:960px;z-index:20;
+  text-align:center;opacity:0;transition:opacity 260ms var(--ease),transform 260ms var(--ease);pointer-events:none}
+.flash.show{opacity:1;transform:translate(-50%,0)}
+.flash .main{font-size:26px;line-height:33px;color:var(--fog-50);text-shadow:var(--shadow-text-strong)}
+.flash .sub{font-size:16px;line-height:22px;color:var(--fog-300);margin-top:8px;text-shadow:var(--shadow-text-strong)}
+.flash .dayrule{width:240px;height:1px;background:var(--copper-a22);margin:14px auto}
+
+/* 对话 */
+.dialogue{position:absolute;left:24px;top:580px;width:720px;height:116px;z-index:30;padding:16px;
+  opacity:0;transform:translateY(8px);transition:opacity 260ms var(--ease),transform 260ms var(--ease);
+  pointer-events:none}
+.dialogue.open{opacity:1;transform:translateY(0)}
+.dialogue .name{font-size:16px;line-height:22px;color:var(--copper-400);position:absolute;left:16px;top:12px}
+.dialogue .name.is-player{color:var(--sea-300)}
+.dialogue .line{position:absolute;left:16px;top:38px;width:688px;font-family:var(--narr);
+  font-size:18px;line-height:27px;color:var(--fog-50)}
+.dialogue .more{position:absolute;left:700px;top:96px;width:8px;height:8px;
+  border-right:1px solid var(--copper-400);border-bottom:1px solid var(--copper-400);
+  transform:rotate(45deg);animation:breath 1600ms ease-in-out infinite}
+@keyframes breath{0%,100%{opacity:1}50%{opacity:.55}}
+
+/* 遮罩 */
+.mask{position:absolute;inset:0;opacity:0;transition:opacity 180ms var(--ease);pointer-events:none}
+.mask.open{opacity:1;pointer-events:auto}
+.mask.letter{background:rgba(7,12,16,.55);z-index:44}
+.mask.pause{background:rgba(7,12,16,.72);z-index:49}
+
+/* 信纸 */
+.letter{position:absolute;left:240px;top:80px;width:800px;height:560px;z-index:45;border-radius:2px;
+  background:linear-gradient(145deg,var(--paper-100),var(--paper-200));
+  border:1px solid var(--paper-rule);outline:1px solid var(--paper-rule-strong);
+  box-shadow:var(--shadow-paper);opacity:0;transform:translateY(8px);
+  transition:opacity 260ms var(--ease),transform 260ms var(--ease);pointer-events:none;overflow:hidden}
+.letter.open{opacity:1;transform:translateY(0)}
+.letter::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:rgba(255,255,255,.55)}
+.letter .head{position:absolute;left:40px;top:32px;font-size:16px;line-height:22px;color:var(--paper-muted)}
+.letter .rule{position:absolute;left:40px;top:64px;width:720px;height:1px;background:var(--paper-rule)}
+.letter .body{position:absolute;left:40px;top:88px;width:720px;font-family:var(--narr);
+  font-size:18px;line-height:30.6px;color:var(--paper-ink)}
+.letter .body p{margin-bottom:9px}
+.letter .foot{position:absolute;right:40px;top:512px;display:flex;align-items:center;gap:6px;
+  font-size:14px;line-height:20px;color:var(--paper-muted)}
+.key.paper{background:var(--paper-200);border:1px solid var(--paper-rule-strong);color:var(--paper-ink);
+  box-shadow:inset 0 -1px 0 rgba(0,0,0,.10)}
+
+/* 结算卡 */
+.catch{position:absolute;left:430px;top:452px;width:420px;height:140px;z-index:20;border-radius:3px;
+  background:rgba(12,19,25,.94);border:1px solid var(--copper-a42);border-left:2px solid var(--copper-400);
+  box-shadow:var(--shadow-panel);opacity:0;transform:translateY(12px);
+  transition:opacity 260ms var(--ease),transform 260ms var(--ease);pointer-events:none}
+.catch.open{opacity:1;transform:translateY(0)}
+.catch .n{position:absolute;left:24px;top:20px;font-family:var(--narr);font-size:26px;line-height:33px;color:var(--fog-50)}
+.catch .s{position:absolute;left:24px;top:58px;font-size:16px;line-height:22px;color:var(--fog-300)}
+.catch .v{position:absolute;right:24px;top:24px;font-size:22px;line-height:30px;color:var(--copper-400);font-variant-numeric:tabular-nums}
+.catch .c{position:absolute;right:24px;top:54px;font-size:14px;line-height:20px;color:var(--fog-300)}
+.catch .r{position:absolute;left:24px;top:92px;width:372px;height:1px;background:var(--copper-a22)}
+.catch .h{position:absolute;left:24px;top:102px;font-size:14px;line-height:20px;color:var(--fog-300)}
+.catch .badge{position:absolute;right:24px;top:-10px;height:18px;padding:0 6px;border-radius:3px;
+  background:rgba(232,176,75,.94);color:var(--ink-950);font-size:12px;line-height:18px;letter-spacing:.5px;
+  animation:breath 1600ms ease-in-out infinite}
+
+/* 暂停 */
+.pause{position:absolute;left:400px;top:164px;width:480px;height:392px;z-index:50;border-radius:3px;
+  background:rgba(12,19,25,.96);border:1px solid var(--copper-a42);border-left:2px solid var(--copper-a72);
+  box-shadow:var(--shadow-panel);opacity:0;transform:translateY(8px);
+  transition:opacity 260ms var(--ease),transform 260ms var(--ease);pointer-events:none}
+.pause.open{opacity:1;transform:translateY(0);pointer-events:auto}
+.pause .title{position:absolute;left:24px;top:18px;font-size:22px;line-height:30px;color:var(--fog-50)}
+.pause .tkey{position:absolute;right:24px;top:18px}
+.pause .trule{position:absolute;left:24px;top:52px;width:432px;height:1px;background:var(--copper-a22)}
+.prow{position:absolute;left:8px;width:464px;height:48px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 16px;border-radius:2px;cursor:pointer;
+  font-size:18px;line-height:27px;color:var(--fog-100);transition:background 120ms var(--ease)}
+.prow:hover{background:rgba(232,176,75,.06)}
+.prow.focused{background:rgba(232,176,75,.10);color:var(--copper-300)}
+.prow.focused::before{content:"";position:absolute;left:0;top:8px;width:3px;height:32px;background:var(--copper-400)}
+.prow .arw{width:8px;height:8px;border-right:1px solid var(--copper-400);border-bottom:1px solid var(--copper-400);
+  transform:rotate(-45deg);opacity:0;margin-right:8px}
+.prow.focused .arw{opacity:1}
+.prow.disabled{color:var(--fog-500)}
+.slider{position:absolute;left:232px;top:14px;width:180px;height:20px}
+.track{position:absolute;left:0;top:8px;width:180px;height:4px;border-radius:2px;background:var(--ink-700);cursor:pointer}
+.fill{position:absolute;left:0;top:0;height:4px;border-radius:2px;background:var(--copper-400);width:60%}
+.knob{position:absolute;top:-5px;left:60%;width:12px;height:12px;border-radius:999px;background:var(--copper-300);
+  border:2px solid var(--ink-900);transform:translateX(-6px)}
+.prow .pn{position:absolute;right:16px;font-size:14px;line-height:20px;color:var(--fog-300)}
+.pause .foot{position:absolute;left:24px;top:348px;font-size:14px;line-height:20px;color:var(--fog-300)}
+
+/* 鱼篓 */
+.creel{position:absolute;left:920px;top:0;width:360px;height:720px;z-index:40;
+  background:rgba(12,19,25,.96);border-left:1px solid var(--copper-a42);
+  box-shadow:-12px 0 28px rgba(0,0,0,.35);opacity:0;transform:translateX(24px);
+  transition:opacity 260ms var(--ease),transform 260ms var(--ease);pointer-events:none}
+.creel.open{opacity:1;transform:translateX(0);pointer-events:auto}
+.creel::before{content:"";position:absolute;left:1px;top:0;bottom:0;width:2px;background:var(--copper-a72);opacity:.7}
+.creel .title{position:absolute;left:24px;top:24px;font-size:22px;line-height:30px;color:var(--fog-50)}
+.creel .total{position:absolute;right:24px;top:28px;font-size:14px;line-height:20px;color:var(--copper-400)}
+.creel .trule{position:absolute;left:24px;top:64px;width:312px;height:1px;background:var(--copper-a22)}
+.creel .list{position:absolute;left:0;right:0;top:76px;bottom:24px;overflow-y:auto}
+.creel .list::-webkit-scrollbar{width:4px}
+.creel .list::-webkit-scrollbar-thumb{background:var(--copper-a42);border-radius:2px}
+.creel .list::-webkit-scrollbar-track{background:var(--ink-700)}
+.crow{position:relative;height:56px;border-bottom:1px solid rgba(232,176,75,.10);margin:0 24px}
+.crow .n{position:absolute;left:0;top:10px;font-size:18px;line-height:27px;color:var(--fog-50)}
+.crow .s{position:absolute;left:0;top:30px;font-size:14px;line-height:20px;color:var(--fog-300)}
+.crow .v{position:absolute;right:0;top:12px;font-size:16px;line-height:22px;color:var(--copper-400);font-variant-numeric:tabular-nums}
+.crow .m{position:absolute;right:0;top:32px;font-size:12px;line-height:16px;letter-spacing:.5px;color:var(--sea-300)}
+.creel .empty{position:absolute;left:0;right:0;top:320px;text-align:center;font-size:16px;line-height:26px;color:var(--fog-300)}
+
+/* 标注层 */
+#stage.annotate [data-ann]{outline:1px dashed rgba(255,120,120,.85)}
+#stage.annotate [data-ann]::after{content:attr(data-ann);position:absolute;left:0;top:-15px;z-index:99;
+  font-family:var(--ui);font-size:11px;line-height:15px;padding:0 4px;border-radius:2px;white-space:nowrap;
+  color:#fff;background:rgba(196,48,48,.92);letter-spacing:0}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="chrome">
+    <h1>潮汐记事 · UI 基本盘 v1</h1>
+    <div class="sub">1280×720 等比缩放 · 单文件原型 · 无外部依赖</div>
+
+    <div class="grp-t">场景</div>
+    <div class="seg" id="seg-biome">
+      <button data-v="shore" class="on">岸上</button>
+      <button data-v="sea">海上</button>
+    </div>
+
+    <div class="grp-t">光候</div>
+    <div class="seg" id="seg-phase">
+      <button data-v="dawn">晨</button>
+      <button data-v="noon">午</button>
+      <button data-v="dusk" class="on">昏</button>
+      <button data-v="night">夜</button>
+    </div>
+
+    <div class="grp-t">覆盖层</div>
+    <div class="seg" id="seg-overlay">
+      <button data-v="none">无</button>
+      <button data-v="dialogue" class="on">对话</button>
+      <button data-v="letter">信纸</button>
+      <button data-v="catch">结算</button>
+      <button data-v="pause">暂停</button>
+      <button data-v="creel">鱼篓</button>
+    </div>
+
+    <label class="chk"><input type="checkbox" id="chk-ann"> 显示标注（坐标 / 尺寸）</label>
+    <label class="chk"><input type="checkbox" id="chk-overflow"> 鱼篓溢出（13 条，演示滚动）</label>
+    <label class="chk"><input type="checkbox" id="chk-empty"> 鱼篓为空</label>
+    <label class="chk"><input type="checkbox" id="chk-flash"> 瞬时大字</label>
+
+    <div id="legend">
+      <div class="grp-t">色板</div>
+      <div class="sw"><i style="background:#0C1319"></i>ink-900 面板底</div>
+      <div class="sw"><i style="background:#E8B04B"></i>copper-400 强调</div>
+      <div class="sw"><i style="background:#F5F3EA"></i>fog-50 主文</div>
+      <div class="sw"><i style="background:#9FD3E6"></i>sea-300 交互</div>
+      <div class="sw"><i style="background:#F7F0E2"></i>paper-100 纸</div>
+      <div class="grp-t">字号</div>
+      <div class="ts"><b>12</b> 键帽 · <b>14</b> 单位 · <b>16</b> 层级 · <b>18</b> 正文 · <b>22</b> 状态 · <b>26</b> 大字 · <b>34</b> 换日</div>
+      <div class="grp-t">节点</div>
+      <div class="ts">左 2 上右下 1 · 圆角 3 · 栅格 4 · 安全区 24</div>
+    </div>
+  </aside>
+
+  <div id="viewport"><div id="holder"><div id="stage" data-biome="shore" data-phase="dusk">
+
+    <div class="world">
+      <div class="sky"></div>
+      <div class="sun" style="left:940px;top:-40px;width:420px;height:420px"></div>
+      <div class="sea"><div class="sea-lines"></div></div>
+      <div class="horizon"></div>
+
+      <div class="sand"></div>
+
+      <div class="rock" style="left:60px;top:560px;width:150px;height:56px;clip-path:polygon(0 100%,14% 18%,58% 0,100% 46%,96% 100%)"></div>
+      <div class="rock" style="left:250px;top:600px;width:120px;height:44px;clip-path:polygon(0 100%,22% 30%,70% 8%,100% 62%,100% 100%)"></div>
+      <div class="rock" style="left:1010px;top:580px;width:180px;height:60px;clip-path:polygon(0 100%,10% 40%,54% 0,100% 52%,94% 100%)"></div>
+
+      <div class="pier" style="left:700px;top:414px;width:330px;height:180px">
+        <i style="left:0;top:0;width:330px;height:14px"></i>
+        <i style="left:0;top:-16px;width:300px;height:14px;opacity:.8"></i>
+        <i style="left:0;top:-32px;width:270px;height:14px;opacity:.6"></i>
+        <i style="left:8px;top:14px;width:14px;height:70px"></i>
+        <i style="left:104px;top:14px;width:14px;height:96px"></i>
+        <i style="left:212px;top:14px;width:14px;height:84px"></i>
+        <i style="left:316px;top:14px;width:14px;height:62px"></i>
+      </div>
+
+      <div class="boat">
+        <div class="mast"></div>
+        <div class="lamp"></div>
+        <div class="hull"></div>
+        <div class="rib"></div>
+      </div>
+    </div>
+
+    <!-- 常驻区 -->
+    <div class="hud">
+      <div class="keybar panel txt-shadow" id="keybar" data-ann="KeyBar 24,24 h36"></div>
+      <div class="statline txt-shadow" id="statline" data-ann="StatLine 24,72 h30"></div>
+      <div class="prompt txt-shadow" id="prompt" data-ann="Prompt 24,110 h24"></div>
+    </div>
+
+    <!-- 瞬时 -->
+    <div class="flash" id="flash" data-ann="Flash 居中 y400">
+      <div class="main" id="flashMain">第 4 天</div>
+      <div class="dayrule"></div>
+      <div class="sub" id="flashSub">有人把昨天的鱼用起来了</div>
+    </div>
+
+    <!-- 对话 -->
+    <div class="dialogue panel" id="dialogue" data-overlay="dialogue" data-ann="Dialogue 24,580 720×116">
+      <div class="name" id="dlgName">灯婆</div>
+      <div class="line" id="dlgLine">「这么肥，得配点姜。」</div>
+      <div class="more"></div>
+    </div>
+
+    <!-- 结算 -->
+    <div class="catch" id="catch" data-overlay="catch" data-ann="CatchCard 430,452 420×140">
+      <div class="badge">新记录</div>
+      <div class="n">鲈鱼</div>
+      <div class="s">42 cm</div>
+      <div class="v">38 文</div>
+      <div class="c">鱼篓 3 条</div>
+      <div class="r"></div>
+      <div class="h">按 空格 再抛一竿</div>
+    </div>
+
+    <!-- 鱼篓 -->
+    <div class="creel" id="creel" data-overlay="creel" data-ann="Creel 920,0 360×720">
+      <div class="title">鱼篓</div>
+      <div class="total" id="creelTotal">共 7 条</div>
+      <div class="trule"></div>
+      <div class="list" id="creelList"></div>
+      <div class="empty" id="creelEmpty" style="display:none">鱼篓是空的<br><span style="font-size:14px;line-height:20px">按 <span class="key paper" style="height:18px;line-height:16px">E</span> 上岸卖鱼</span></div>
+    </div>
+
+    <!-- 信纸 -->
+    <div class="mask letter" id="letterMask" data-overlay="letter"></div>
+    <div class="letter" id="letter" data-overlay="letter" data-ann="Letter 240,80 800×560">
+      <div class="head">第 3 封　·　第 1 页</div>
+      <div class="rule"></div>
+      <div class="body">
+        <p>岸上的灯，是我点的。</p>
+        <p>潮水每天退两次，退下去的时候，沙会亮一下，像有人把灯埋在里面。你要是看见哪块沙亮得比别人久，就把鱼放在那儿，别多看。</p>
+        <p>信是我托海鸟带的。它不认字，只认腥味，所以你读完了，把信纸揉软一点再放回船舱——它闻到纸上的鱼味，下回还肯来。</p>
+        <p>船我修好了。你出海的时候记得带饵，别学你爹，空着手就去，回来还说海不给他面子。</p>
+        <p>要是听见有人喊你名字，别应声。海里的东西学人说话，学得很像，就是学不会人的喘气。</p>
+        <p>第十二天我要去镇上送鱼。你要是回来得早，就在码头等我。</p>
+        <p>姜在灶台第二个罐子里。</p>
+      </div>
+      <div class="foot"><span class="key paper">T</span><span>下一页</span></div>
+    </div>
+
+    <!-- 暂停 -->
+    <div class="mask pause" id="pauseMask" data-overlay="pause"></div>
+    <div class="pause" id="pause" data-overlay="pause" data-ann="Pause 400,164 480×392">
+      <div class="title">暂停</div>
+      <div class="tkey"><span class="key">Esc</span></div>
+      <div class="trule"></div>
+      <div class="prow focused" data-i="0" style="top:60px" data-ann="row h48"><span>继续</span><span class="arw"></span></div>
+      <div class="prow" data-i="1" style="top:108px" data-ann="row h48">
+        <span>音量</span>
+        <span class="slider"><span class="track" id="track"><span class="fill" id="fill"></span><span class="knob" id="knob"></span></span></span>
+        <span class="pn" id="pct">60%</span>
+      </div>
+      <div class="prow" data-i="2" style="top:156px"><span>操作说明</span><span class="arw"></span></div>
+      <div class="prow" data-i="3" style="top:204px"><span>回到标题</span><span class="arw"></span></div>
+      <div class="prow" data-i="4" style="top:252px"><span>退出游戏</span><span class="arw"></span></div>
+      <div class="foot">方向键选择　Enter 确认</div>
+    </div>
+
+  </div></div></div>
+</div>
+
+<script>
+(function(){
+  var stage=document.getElementById('stage');
+  var holder=document.getElementById('holder');
+
+  /* ---- 缩放 ---- */
+  function fit(){
+    var vp=document.getElementById('viewport');
+    var s=Math.min((vp.clientWidth-40)/1280,(vp.clientHeight-40)/720);
+    stage.style.transform='scale('+s+')';
+    holder.style.width=(1280*s)+'px';
+    holder.style.height=(720*s)+'px';
+  }
+  window.addEventListener('resize',fit); fit();
+
+  /* ---- 数据 ---- */
+  var KEYBAR={
+    shore:[["W A S D","走"],["F","送鱼"],["E","卖鱼/上船"],["R","买饵"]],
+    sea:[["W","前进"],["S","后退"],["A/D","转向"],["Space","抛竿"],["E","上岸"],["T","读信"],["Esc","退出"]]
+  };
+  var STAT={
+    shore:["第 1 天","钱 0 文","饵 6 个","鱼篓 0 条"],
+    sea:["第 1 天","钱 0 文","饵 6 个","鱼篓 0 条","浅滩湾"]
+  };
+  var FISH=[
+    ["鲈鱼","42 cm","38 文",""],
+    ["黄鳍鲷","31 cm","26 文",""],
+    ["鲻鱼","28 cm","18 文",""],
+    ["石斑","47 cm","62 文","已送 灯婆"],
+    ["沙丁","18 cm","8 文",""],
+    ["鱿鱼","26 cm","22 文",""],
+    ["鳗","63 cm","74 文",""]
+  ];
+  var FISH_MORE=[
+    ["鲈鱼","39 cm","34 文",""],
+    ["黑鲷","33 cm","30 文",""],
+    ["黄鱼","27 cm","21 文",""],
+    ["鲳鱼","24 cm","19 文",""],
+    ["章鱼","31 cm","28 文",""],
+    ["鲑","55 cm","66 文","已送 灯婆"]
+  ];
+
+  var state={biome:'shore',phase:'dusk',overlay:'dialogue',overflow:false,empty:false,flash:false};
+
+  /* ---- 渲染常驻区 ---- */
+  function renderHud(){
+    var bar=document.getElementById('keybar');
+    var html='';
+    KEYBAR[state.biome].forEach(function(g){
+      html+='<span class="g"><span class="ks">';
+      g[0].split(' ').forEach(function(k){ html+='<span class="key">'+k+'</span>'; });
+      html+='</span><span>'+g[1]+'</span></span>';
+    });
+    bar.innerHTML=html;
+
+    document.getElementById('statline').innerHTML=STAT[state.biome].map(function(seg){
+      var m=seg.match(/^(.*?)([文天个条])$/);
+      if(m&&m[2]) return '<span>'+m[1]+'<span class="u">'+m[2]+'</span></span>';
+      return '<span>'+seg+'</span>';
+    }).join('<span class="sep">·</span>');
+
+    var p=document.getElementById('prompt');
+    p.innerHTML = state.biome==='shore'
+      ? '<span class="key">F</span><span>把鱼送给 灯婆</span>'
+      : '<span class="key">T</span><span>读信</span><span style="width:16px"></span><span class="key">Space</span><span>再抛一竿</span>';
+    p.classList.toggle('on',state.overlay==='none'||state.overlay==='catch'||state.overlay==='creel');
+  }
+
+  /* ---- 鱼篓 ---- */
+  function renderCreel(){
+    var rows=state.empty?[]:(state.overflow?FISH.concat(FISH_MORE):FISH);
+    document.getElementById('creelList').innerHTML=rows.map(function(r){
+      return '<div class="crow"><div class="n">'+r[0]+'</div><div class="s">'+r[1]+'</div>'
+        +'<div class="v">'+r[2]+'</div>'+(r[3]?'<div class="m">'+r[3]+'</div>':'')+'</div>';
+    }).join('');
+    document.getElementById('creelTotal').textContent='共 '+rows.length+' 条';
+    document.getElementById('creelList').style.display=rows.length?'block':'none';
+    document.getElementById('creelEmpty').style.display=rows.length?'none':'block';
+  }
+
+  /* ---- 覆盖层 ---- */
+  function syncSeg(id,val){
+    document.querySelectorAll('#'+id+' button').forEach(function(b){
+      b.classList.toggle('on',b.dataset.v===val);
+    });
+  }
+  function setOverlay(name){
+    state.overlay=name;
+    document.querySelectorAll('[data-overlay]').forEach(function(el){
+      el.classList.toggle('open',el.getAttribute('data-overlay')===name);
+    });
+    document.getElementById('prompt').classList.toggle('on',name==='none'||name==='catch'||name==='creel');
+    syncSeg('seg-overlay',name);
+    if(name==='pause') focusRow(0);
+    if(name==='catch'){
+      var c=document.getElementById('catch');
+      c.classList.remove('open'); void c.offsetWidth; c.classList.add('open');
+    }
+  }
+
+  /* ---- 暂停焦点 ---- */
+  var rows=[].slice.call(document.querySelectorAll('.prow'));
+  function focusRow(i){
+    rows.forEach(function(r,idx){ r.classList.toggle('focused',idx===i); });
+  }
+  rows.forEach(function(r,idx){ r.addEventListener('click',function(){ focusRow(idx); }); });
+  document.addEventListener('keydown',function(e){
+    if(state.overlay!=='pause') return;
+    var i=-1; rows.forEach(function(r,idx){ if(r.classList.contains('focused')) i=idx; });
+    if(e.key==='ArrowDown'){ e.preventDefault(); focusRow((i+1)%rows.length); }
+    if(e.key==='ArrowUp'){ e.preventDefault(); focusRow((i-1+rows.length)%rows.length); }
+  });
+
+  /* ---- 滑块 ---- */
+  (function(){
+    var track=document.getElementById('track'),fill=document.getElementById('fill'),
+        knob=document.getElementById('knob'),pct=document.getElementById('pct'),dragging=false;
+    function set(v){
+      v=Math.max(0,Math.min(1,v));
+      fill.style.width=(v*100)+'%';
+      knob.style.left=(v*100)+'%';
+      pct.textContent=Math.round(v*100)+'%';
+    }
+    function fromEvent(e){
+      var r=track.getBoundingClientRect();
+      set((e.clientX-r.left)/r.width);
+    }
+    track.addEventListener('pointerdown',function(e){
+      dragging=true; track.setPointerCapture(e.pointerId); fromEvent(e); e.stopPropagation();
+    });
+    track.addEventListener('pointermove',function(e){ if(dragging) fromEvent(e); });
+    track.addEventListener('pointerup',function(){ dragging=false; });
+    window.addEventListener('pointerup',function(){ dragging=false; });
+  })();
+
+  /* ---- 分段控件 ---- */
+  document.querySelectorAll('#seg-biome button').forEach(function(b){
+    b.addEventListener('click',function(){
+      state.biome=b.dataset.v; stage.dataset.biome=state.biome;
+      syncSeg('seg-biome',state.biome); renderHud();
+    });
+  });
+  document.querySelectorAll('#seg-phase button').forEach(function(b){
+    b.addEventListener('click',function(){
+      state.phase=b.dataset.v; stage.dataset.phase=state.phase; syncSeg('seg-phase',state.phase);
+    });
+  });
+  document.querySelectorAll('#seg-overlay button').forEach(function(b){
+    b.addEventListener('click',function(){ setOverlay(b.dataset.v); });
+  });
+
+  /* ---- 开关 ---- */
+  document.getElementById('chk-ann').addEventListener('change',function(e){
+    stage.classList.toggle('annotate',e.target.checked);
+  });
+  document.getElementById('chk-overflow').addEventListener('change',function(e){
+    state.overflow=e.target.checked; renderCreel();
+  });
+  document.getElementById('chk-empty').addEventListener('change',function(e){
+    state.empty=e.target.checked; renderCreel();
+  });
+  document.getElementById('chk-flash').addEventListener('change',function(e){
+    document.getElementById('flash').classList.toggle('show',e.target.checked);
+  });
+
+  /* ---- 键盘 ---- */
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape') setOverlay('none');
+    if(e.key==='t'||e.key==='T') setOverlay(state.overlay==='letter'?'none':'letter');
+  });
+
+  /* ---- 深链接：#b=sea&p=night&o=letter&big=1 ---- */
+  (function(){
+    var h=new URLSearchParams(location.hash.replace(/^#/,''));
+    if(h.get('b')) state.biome=h.get('b');
+    if(h.get('p')) state.phase=h.get('p');
+    if(h.get('o')) state.overlay=h.get('o');
+    if(h.get('big')) state.overflow=true;
+    if(h.get('e')) state.empty=true;
+    stage.dataset.biome=state.biome;
+    stage.dataset.phase=state.phase;
+    syncSeg('seg-biome',state.biome);
+    syncSeg('seg-phase',state.phase);
+    document.getElementById('chk-overflow').checked=state.overflow;
+    document.getElementById('chk-empty').checked=state.empty;
+  })();
+
+  renderHud();
+  renderCreel();
+  setOverlay(state.overlay);
+})();
+</script>
+</body>
+</html>
